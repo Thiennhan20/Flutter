@@ -76,7 +76,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'dating_project.wsgi.application'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
+# Thêm STATIC_URL nếu cần
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

@@ -1,19 +1,51 @@
 import 'package:flutter/material.dart';
+import 'change_information_user.dart';
+import 'messages_screen.dart';
 import 'setting_account.dart';
-class ProfileUserScreen extends StatelessWidget {
-  final dynamic user;
 
-  const ProfileUserScreen({super.key, required this.user});
+class ProfileUserScreen extends StatefulWidget {
+  final dynamic user;
+  final String token; // Thêm token
+
+  const ProfileUserScreen({Key? key, required this.user, required this.token}) : super(key: key);
+
+  @override
+  _ProfileUserScreenState createState() => _ProfileUserScreenState();
+}
+
+class _ProfileUserScreenState extends State<ProfileUserScreen> {
+  late dynamic user;
+
+  @override
+  void initState() {
+    super.initState();
+    user = widget.user; // Khởi tạo giá trị ban đầu cho user
+  }
 
   @override
   Widget build(BuildContext context) {
+    Widget _buildBottomNavButton(IconData icon, String label, Color color, VoidCallback onPressed) {
+      return Column(
+        children: [
+          IconButton(
+            icon: Icon(icon, color: color, size: 30),
+            onPressed: onPressed,
+          ),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 12),
+          ),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        automaticallyImplyLeading: false, // Ẩn nút quay lại
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.black,
         elevation: 0,
-        centerTitle: true, // Canh giữa tiêu đề
+        centerTitle: true,
         title: const Text(
           'Profile',
           style: TextStyle(color: Colors.white),
@@ -57,8 +89,25 @@ class ProfileUserScreen extends StatelessWidget {
                           backgroundColor: Colors.red,
                           child: IconButton(
                             icon: const Icon(Icons.edit, color: Colors.white),
-                            onPressed: () {
-                              // Logic chỉnh sửa ảnh đại diện
+                            onPressed: () async {
+                              final updatedUser = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChangeInformationUserScreen(
+                                    user: user,
+                                    token: widget.token,
+                                  ),
+                                ),
+                              );
+
+                              if (updatedUser != null) {
+                                // Cập nhật thông tin user trong giao diện
+                                setState(() {
+                                  user['username'] = updatedUser['username'];
+                                  user['age'] = updatedUser['age'];
+                                  user['location'] = updatedUser['location'];
+                                });
+                              }
                             },
                           ),
                         ),
@@ -76,9 +125,10 @@ class ProfileUserScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Nút hoàn thành
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      print('Complete profile button clicked');
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       shape: RoundedRectangleBorder(
@@ -87,62 +137,6 @@ class ProfileUserScreen extends StatelessWidget {
                     ),
                     child: const Text('100% HOÀN THÀNH'),
                   ),
-                  const SizedBox(height: 20),
-                  // Các tính năng
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildFeatureCard('0 lượt', Icons.star, 'Siêu Thích', Colors.blue),
-                      _buildFeatureCard('0 lượt', Icons.bolt, 'Lượt Tăng Tốc', Colors.purple),
-                      _buildFeatureCard('0 gói', Icons.local_fire_department, 'Gói Đăng Ký', Colors.red),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Thẻ nâng cấp
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.yellow[700],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Tinder Gold',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Bao gồm các tính năng:',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildFeatureComparison('Xem ai Thích Bạn', true),
-                        _buildFeatureComparison('Top Tuyển chọn', true),
-                        _buildFeatureComparison('Lượt Siêu Thích Miễn Phí', true),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Logic nâng cấp
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('Nâng cấp ngay', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -155,10 +149,17 @@ class ProfileUserScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildBottomNavButton(Icons.home, 'Home', Colors.red, () {
-                  Navigator.pop(context); // Quay lại màn hình trước đó (Home)
+                  Navigator.popUntil(context, (route) => route.isFirst);
                 }),
                 _buildBottomNavButton(Icons.search, 'Search', Colors.blue, () {}),
-                _buildBottomNavButton(Icons.chat, 'Messages', Colors.green, () {}),
+                _buildBottomNavButton(Icons.chat, 'Messages', Colors.green, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MessagesScreen(token: widget.token), // Truyền token chính xác
+                    ),
+                  );
+                }),
                 _buildBottomNavButton(Icons.person, 'Profile', Colors.purple, () {}),
               ],
             ),
@@ -167,54 +168,5 @@ class ProfileUserScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildFeatureCard(String count, IconData icon, String title, Color color) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white, size: 30),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          count,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: const TextStyle(color: Colors.white),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureComparison(String feature, bool isGold) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(feature, style: const TextStyle(color: Colors.black)),
-        Icon(
-          isGold ? Icons.check : Icons.close,
-          color: isGold ? Colors.green : Colors.red,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomNavButton(IconData icon, String label, Color color, VoidCallback onPressed) {
-    return Column(
-      children: [
-        IconButton(
-          icon: Icon(icon, color: color, size: 30),
-          onPressed: onPressed,
-        ),
-        Text(
-          label,
-          style: TextStyle(color: color, fontSize: 12),
-        ),
-      ],
-    );
-  }
 }
+

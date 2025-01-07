@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import CustomUser, Profile, Swipe, Message
+from .models import CustomUser, Swipe, ChatMessage
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'password', 'bio', 'location', 'gender', 'profile_picture']
+        fields = ['id','first_name', 'last_name', 'username', 'email', 'password', 'bio', 'location', 'gender', 'profile_picture', 'age']
         extra_kwargs = {
             'password': {'write_only': True}  # Đảm bảo mật khẩu chỉ ghi, không trả về
         }
@@ -18,31 +18,29 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
-    def get_profile(self, obj):
-        # Lấy thông tin từ bảng Profile liên kết
-        try:
-            profile = Profile.objects.get(user=obj)
-            return ProfileSerializer(profile).data
-        except Profile.DoesNotExist:
-            return None
 
     def get_profile_picture(self, obj):
         request = self.context.get('request')
         if obj.profile_picture:
+            # Đảm bảo đường dẫn luôn đúng
+            if not obj.profile_picture.url.startswith('/'):
+                return request.build_absolute_uri('/' + obj.profile_picture.url)
             return request.build_absolute_uri(obj.profile_picture.url)
         return None
 
-class ProfileSerializer(serializers.ModelSerializer):
+
+class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Profile
-        fields = '__all__'
+        model = CustomUser
+        fields = ['username', 'bio', 'location', 'gender', 'profile_picture', 'age']
+
 
 class SwipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Swipe
         fields = '__all__'
 
-class MessageSerializer(serializers.ModelSerializer):
+class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Message
+        model = ChatMessage
         fields = '__all__'

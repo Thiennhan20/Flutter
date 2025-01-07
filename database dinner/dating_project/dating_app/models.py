@@ -6,12 +6,7 @@ class CustomUser(AbstractUser):
     location = models.CharField(max_length=100, null=True, blank=True)
     gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female')])
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
-
-
-# Hồ sơ người dùng
-class Profile(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    interested_in = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female'), ('both', 'Both')])
+    age = models.IntegerField(null=True, blank=True)
 
 # Thích và không thích
 class Swipe(models.Model):
@@ -19,10 +14,19 @@ class Swipe(models.Model):
     liked = models.ForeignKey(CustomUser, related_name='liked', on_delete=models.CASCADE)
     liked_at = models.DateTimeField(auto_now_add=True)
     is_like = models.BooleanField()  # True nếu thích, False nếu không thích
+    is_match = models.BooleanField(default=False)  # Đánh dấu nếu là match
+
 
 # Tin nhắn
-class Message(models.Model):
-    sender = models.ForeignKey(CustomUser, related_name='sent_messages', on_delete=models.CASCADE)
-    receiver = models.ForeignKey(CustomUser, related_name='received_messages', on_delete=models.CASCADE)
-    content = models.TextField()
+class ChatRoom(models.Model):
+    users = models.ManyToManyField(CustomUser, related_name="chat_rooms")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"ChatRoom {self.id}"
+
+class ChatMessage(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)

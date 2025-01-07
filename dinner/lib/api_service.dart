@@ -34,4 +34,19 @@ class ApiService {
       throw Exception('Failed to load user profile');
     }
   }
+
+  Future<List<dynamic>> fetchMatches(String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/matches/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body); // Trả về danh sách match
+    } else {
+      throw Exception('Failed to load matches: ${response.statusCode}');
+    }
+  }
 }
