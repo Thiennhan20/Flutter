@@ -22,9 +22,11 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
                 self.channel_name,
             )
             await self.accept()
+            print(f"WebSocket connected to room: {self.room_name}")
         except Exception as e:
             print(f"Error during WebSocket connection: {e}")
             await self.close()
+
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
@@ -64,9 +66,13 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_room(self, room_name):
         try:
-            return ChatRoom.objects.get(id=room_name)
+            room = ChatRoom.objects.get(id=room_name)
+            print(f"Room found: {room_name}")
+            return room
         except ChatRoom.DoesNotExist:
-            raise Exception("Room not found")
+            print(f"Room not found: {room_name}")
+            raise Exception(f"Room with id {room_name} does not exist.")
+
 
     @database_sync_to_async
     def save_message(self, room, user, message):

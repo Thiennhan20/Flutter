@@ -19,6 +19,7 @@ class Swipe(models.Model):
 
 # Tin nhắn
 class ChatRoom(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
     users = models.ManyToManyField(CustomUser, related_name="chat_rooms")
     created_at = models.DateTimeField(auto_now_add=True)
 

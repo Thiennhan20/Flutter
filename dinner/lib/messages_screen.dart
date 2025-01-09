@@ -26,6 +26,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final matches = await apiService.fetchMatches(widget.token);
       print("Matches data: $matches"); // In log kiểm tra dữ liệu trả về
+
+      // Sắp xếp danh sách dựa trên tin nhắn mới nhất
+      matches.sort((a, b) {
+        final aMessage = a['latest_message'] ?? '';
+        final bMessage = b['latest_message'] ?? '';
+        return bMessage.compareTo(aMessage); // Tin nhắn mới nhất lên đầu
+      });
+
       setState(() {
         matchList = matches;
       });
@@ -33,6 +41,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       print('Error fetching matches: $e');
     }
   }
+
 
 
   Widget _buildBottomNavButton(IconData icon, String label, Color color, VoidCallback onPressed) {
@@ -101,8 +110,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                       subtitle: Text(
-                        match['bio'] ?? '',
+                        '${match['latest_sender']}: ${match['latest_message']}', // Hiển thị tên và tin nhắn
                         style: const TextStyle(color: Colors.grey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis, // Cắt chữ nếu quá dài
                       ),
                       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: () {
@@ -125,14 +136,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           ),
                         );
                       },
-
-
-
                     ),
                   ),
                 );
               },
-            ),
+            )
+
           ),
           // Navigation Bar dưới cùng (Cố định)
           Container(

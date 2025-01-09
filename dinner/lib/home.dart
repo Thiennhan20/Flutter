@@ -21,6 +21,9 @@ class _UserListScreenState extends State<UserListScreen> {
   final ApiService apiService = ApiService();
   List<dynamic> userList = [];
   String? yourImage; // Lưu ảnh của bạn
+  bool isLoading = false;
+  String? nextPageUrl;
+
 
   @override
   void initState() {
@@ -33,23 +36,34 @@ class _UserListScreenState extends State<UserListScreen> {
     });
   }
 
-  void fetchUsers() async {
-    try {
-      // Lấy danh sách tất cả người dùng
-      final users = await apiService.fetchUsers(widget.token);
-      // Lấy danh sách các user đã match
-      final matches = await apiService.fetchMatches(widget.token);
+  void fetchUsers({bool isLoadMore = false}) async {
+    if (isLoading || (isLoadMore && nextPageUrl == null)) return;
 
-      // Tạo danh sách ID của các user đã match
-      final matchedIds = matches.map((match) => match['id']).toSet();
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await apiService.fetchUsers(
+        widget.token,
+        nextPageUrl: isLoadMore ? nextPageUrl : null,
+      );
 
       setState(() {
-        // Lọc danh sách user, chỉ giữ những user chưa match
-        userList = users.where((user) => !matchedIds.contains(user['id'])).toList();
+        if (isLoadMore) {
+          userList.addAll(response['results']); // Thêm dữ liệu mới
+        } else {
+          userList = response['results']; // Lấy dữ liệu ban đầu
+        }
+        nextPageUrl = response['next']; // Cập nhật URL cho trang tiếp theo
       });
+
+      // Nếu số lượng user hiện tại < 3, tự động load thêm
+      if (userList.length < 3 && nextPageUrl != null) {
+        fetchUsers(isLoadMore: true);
+      }
     } catch (e) {
       if (e.toString().contains('401')) {
-        // Xóa token và chuyển đến màn hình đăng nhập nếu gặp lỗi 401
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('access_token');
         Navigator.pushReplacement(
@@ -57,10 +71,16 @@ class _UserListScreenState extends State<UserListScreen> {
           MaterialPageRoute(builder: (context) => LoginScreen()),
         );
       } else {
-        print('Error fetching users or matches: $e');
+        print('Error fetching users: $e');
       }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
+
+
 
 
 
@@ -129,19 +149,24 @@ class _UserListScreenState extends State<UserListScreen> {
                     return Dismissible(
                       key: ValueKey(entry.key),
                       direction: DismissDirection.horizontal,
-                      onDismissed: (direction) {
-                        setState(() {
-                          userList.removeAt(entry.key);
-                        });
+                        onDismissed: (direction) {
+                          setState(() {
+                            userList.removeAt(entry.key);
+                          });
 
-                        final user = entry.value;
-                        if (direction == DismissDirection.startToEnd) {
-                          _handleSwipe(user['id'], true, user['profile_picture'], user['username']); // Lướt phải: thích
-                        } else if (direction == DismissDirection.endToStart) {
-                          _handleSwipe(user['id'], false, user['profile_picture'], user['username']); // Lướt trái: không thích
-                        }
-                      },
-                      child: ProfileCard(user: entry.value),
+                          final user = entry.value;
+                          if (direction == DismissDirection.startToEnd) {
+                            _handleSwipe(user['id'], true, user['profile_picture'], user['username']); // Swipe right
+                          } else if (direction == DismissDirection.endToStart) {
+                            _handleSwipe(user['id'], false, user['profile_picture'], user['username']); // Swipe left
+                          }
+
+                          // Kiểm tra nếu danh sách còn lại < 3, tải thêm
+                          if (userList.length < 3 && nextPageUrl != null) {
+                            fetchUsers(isLoadMore: true);
+                          }
+                        },
+                        child: ProfileCard(user: entry.value),
                       background: Container(
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 20),

@@ -4,19 +4,31 @@ from rest_framework.permissions import IsAuthenticated
 from .models import CustomUser, Swipe, ChatRoom, ChatMessage
 from .serializers import UserSerializer, SwipeSerializer, ChatMessageSerializer, UserUpdateSerializer
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.pagination import PageNumberPagination
 
 
-# Lấy danh sách người dùng (tìm người để ghép đôi)
+class UserPagination(PageNumberPagination):
+    page_size = 3  # Số lượng user mỗi lần tải
+    page_size_query_param = 'page_size'
+    max_page_size = 10  # Giới hạn tối đa cho phép
+
 class UserListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         print("Current user:", request.user)  # Kiểm tra thông tin người dùng hiện tại
+
         # Loại bỏ tài khoản admin và bản thân người dùng hiện tại
         users = CustomUser.objects.exclude(id=request.user.id).exclude(is_superuser=True)
-        serializer = UserSerializer(users, many=True, context={'request': request})
-        return Response(serializer.data)
+        
+        # Sử dụng pagination
+        paginator = UserPagination()
+        paginated_users = paginator.paginate_queryset(users, request)
+        serializer = UserSerializer(paginated_users, many=True, context={'request': request})
+
+        return paginator.get_paginated_response(serializer.data)
+
 
     
 # API thêm người dùng mới
@@ -75,13 +87,12 @@ class SwipeView(APIView):
                 swipe.is_match = True
                 swipe.save()
 
-                # Tạo phòng chat hoặc lấy phòng chat hiện tại
-                chat_room, created = ChatRoom.objects.get_or_create(
-                    id=min(swipe.liker.id, swipe.liked.id) * 1000 + max(swipe.liker.id, swipe.liked.id),  # Đảm bảo ID phòng duy nhất
-                )
-                if created:
-                    chat_room.users.set([request.user, swipe.liked])  # Thêm người dùng vào phòng
+                chat_room_id = f"{min(swipe.liker.id, swipe.liked.id)}-{max(swipe.liker.id, swipe.liked.id)}"
+                chat_room, created = ChatRoom.objects.get_or_create(id=chat_room_id)
 
+
+                if created:
+                    chat_room.users.set([swipe.liker, swipe.liked])  # Thêm người dùng vào phòng
 
                 return Response({
                     "match": True,
@@ -91,6 +102,7 @@ class SwipeView(APIView):
 
             return Response({"match": False, "message": "Swipe saved."})
         return Response(serializer.errors, status=400)
+
 
 class MatchListView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -102,15 +114,44 @@ class MatchListView(APIView):
 
         response_data = []
         for user in match_users:
-            chat_room = ChatRoom.objects.filter(users__in=[request.user, user]).distinct().first()
+            # Lấy phòng chat dựa trên hai người dùng
+            chat_room = ChatRoom.objects.filter(
+                users=request.user
+            ).filter(
+                users=user
+            ).distinct().first()  # Lấy phòng đầu tiên (nếu tồn tại)
+
+            # Lấy tin nhắn mới nhất trong phòng chat
+            last_message = None
+            if chat_room:
+                last_message = ChatMessage.objects.filter(room=chat_room).order_by('-timestamp').first()
+
             profile_picture_url = request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None
             response_data.append({
+                "id": user.id,  # ID của user
                 "username": user.username,
                 "profile_picture": profile_picture_url,
-                "room_id": chat_room.id if chat_room else None,
+                "room_id": chat_room.id if chat_room else None,  # Đảm bảo `room_id` đúng
+                "latest_message": last_message.message if last_message else None,
+                "latest_sender": last_message.sender.username if last_message else None,
             })
 
+        print("Response Data:", response_data)  # Debug log để kiểm tra
         return Response(response_data)
+
+
+class UserDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            # Lấy thông tin người dùng dựa trên username
+            user = CustomUser.objects.get(username=username)
+            serializer = UserSerializer(user, context={'request': request})
+            return Response(serializer.data)
+        except CustomUser.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
 
 
 
@@ -141,4 +182,16 @@ class ChatMessageListView(APIView):
 
 
 
+class UpdateLocationView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        user = request.user
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+
+        if latitude and longitude:
+            user.location = f"{latitude}, {longitude}"
+            user.save()
+            return Response({'success': 'Location updated successfully'})
+        return Response({'error': 'Invalid data'}, status=400)

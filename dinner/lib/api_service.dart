@@ -5,16 +5,17 @@ class ApiService {
   static const String baseUrl = 'http://10.147.18.78:8000/api'; // Thay đổi thành IP của bạn
 
   // Lấy danh sách người dùng
-  Future<List<dynamic>> fetchUsers(String token) async {
+  Future<Map<String, dynamic>> fetchUsers(String token, {String? nextPageUrl}) async {
+    final url = nextPageUrl ?? '$baseUrl/users/';
     final response = await http.get(
-      Uri.parse('$baseUrl/users/'),
+      Uri.parse(url),
       headers: {
-        'Authorization': 'Bearer $token', // Sử dụng "Bearer" thay vì "Token"
+        'Authorization': 'Bearer $token',
       },
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body); // Trả về danh sách người dùng
+      return jsonDecode(response.body); // Trả về dữ liệu phân trang
     } else {
       throw Exception('Failed to load users: ${response.statusCode}');
     }
